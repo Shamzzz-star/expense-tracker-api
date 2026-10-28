@@ -20,6 +20,12 @@ from .serializers import (
 )
 
 
+def csv_safe(value) -> str:
+    """Neutralise spreadsheet formulas (CSV injection) by prefixing risky cells with a quote."""
+    text = "" if value is None else str(value)
+    return "'" + text if text[:1] in ("=", "+", "-", "@", "\t", "\r") else text
+
+
 class OwnedQuerysetMixin:
     """Restrict every query to the logged-in user's rows and set them as owner on create."""
 
@@ -71,7 +77,6 @@ class ExpenseViewSet(OwnedQuerysetMixin, viewsets.ModelViewSet):
         return Response(YearlyTrendSerializer(services.yearly_trend(request.user, year)).data)
 
     @extend_schema(responses={(200, "text/csv"): str})
-
     @action(detail=False, methods=["get"], url_path="export")
     def export_csv(self, request):
         """Download the (filtered) expenses as a CSV file."""
@@ -80,5 +85,6 @@ class ExpenseViewSet(OwnedQuerysetMixin, viewsets.ModelViewSet):
         writer = csv.writer(response)
         writer.writerow(["date", "amount", "category", "description"])
         for e in self.filter_queryset(self.get_queryset()):
-            writer.writerow([e.date, e.amount, e.category.name if e.category else "", e.description])
+            category = e.category.name if e.category else ""
+            writer.writerow([e.date, e.amount, csv_safe(category), csv_safe(e.description)])
         return response

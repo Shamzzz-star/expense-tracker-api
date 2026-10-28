@@ -17,7 +17,9 @@ see monthly and yearly spending reports, and export their data to CSV.
   - `GET /api/expenses/summary/?month=YYYY-MM`: monthly total, per-category breakdown, over-budget flags
   - `GET /api/expenses/trend/?year=YYYY`: totals for each month of the year
 - **CSV export** of filtered expenses
+- **Web frontend** at `/`: sign in, add and edit expenses and categories, budget bars, monthly trend chart, filters and CSV export
 - **Interactive API docs** (OpenAPI / Swagger) via `drf-spectacular`
+- **Security**: debug off by default, required secret key, rate-limited login and sign-up, CSV formula-injection protection, optional HTTPS hardening
 - **Test suite** with `pytest` + `pytest-django`, at about 97% coverage
 - **Docker Compose** setup (API + PostgreSQL) and **GitHub Actions** CI
 
@@ -36,6 +38,7 @@ expenses/
   filters.py     Date / amount / category filters
   services.py    Reporting queries (monthly summary, yearly trend)
   views.py       ViewSets, report and export endpoints
+frontend/        Web UI (one page plus static JS/CSS) served at /
 tests/           pytest test suite
 ```
 
@@ -44,10 +47,11 @@ tests/           pytest test suite
 ### Option 1: Docker (API + PostgreSQL)
 
 ```bash
+cp .env.example .env             # then set DJANGO_SECRET_KEY to a long random string
 docker compose up --build
 ```
 
-The API runs at http://localhost:8000. Docs are at http://localhost:8000/api/docs/.
+The app runs at http://localhost:8000 and the API docs at http://localhost:8000/api/docs/.
 
 ### Option 2: Local (SQLite)
 
@@ -55,10 +59,27 @@ The API runs at http://localhost:8000. Docs are at http://localhost:8000/api/doc
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements-dev.txt
-cp .env.example .env             # optional
+cp .env.example .env             # keeps DJANGO_DEBUG=True for local use
 python manage.py migrate
 python manage.py runserver
 ```
+
+Open http://127.0.0.1:8000/ for the web app.
+
+### Configuration
+
+Settings come from environment variables or `.env` (see `.env.example`).
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `DJANGO_DEBUG` | `False` | Debug pages. Turn on only for local development. |
+| `DJANGO_SECRET_KEY` | none | Required whenever debug is off. |
+| `DJANGO_ALLOWED_HOSTS` | `localhost,127.0.0.1` | Host names the site answers to. |
+| `DJANGO_ADMIN_URL` | `admin/` | Path of the Django admin. |
+| `DJANGO_AUTH_RATE` | `10/min` | Login, refresh and sign-up attempts allowed per IP. |
+| `DJANGO_HTTPS` | `False` | When served over HTTPS: secure cookies, HSTS and redirect to https. |
+| `DJANGO_BEHIND_PROXY` | `False` | Trust `X-Forwarded-Proto` from a reverse proxy (with `DJANGO_HTTPS`). |
+| `DJANGO_CSRF_TRUSTED_ORIGINS` | none | Extra trusted origins for the admin, e.g. `https://example.com`. |
 
 ### Run the tests
 

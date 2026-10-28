@@ -39,3 +39,17 @@ def test_login_with_wrong_password_fails(client, user):
 @pytest.mark.parametrize("url", ["/api/expenses/", "/api/categories/", "/api/auth/me/"])
 def test_endpoints_require_authentication(client, url):
     assert client.get(url).status_code == 401
+
+
+@pytest.mark.django_db
+def test_login_is_rate_limited(client, user, monkeypatch):
+    from django.core.cache import cache
+    from rest_framework.throttling import ScopedRateThrottle
+
+    cache.clear()
+    monkeypatch.setattr(ScopedRateThrottle, "THROTTLE_RATES", {"auth": "3/min"})
+    codes = [
+        client.post("/api/auth/token/", {"username": "alice", "password": "wrong"}).status_code
+        for _ in range(4)
+    ]
+    assert codes == [401, 401, 401, 429]

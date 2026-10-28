@@ -92,3 +92,10 @@ def test_export_csv(auth_client, sample_expenses):
     lines = resp.content.decode().strip().splitlines()
     assert lines[0] == "date,amount,category,description"
     assert len(lines) == 3  # header + 2 October expenses
+
+
+def test_export_csv_neutralises_spreadsheet_formulas(auth_client, user):
+    Expense.objects.create(owner=user, amount="5.00", date=date(2026, 10, 3), description="=HYPERLINK(\"x\")")
+    resp = auth_client.get("/api/expenses/export/")
+    row = resp.content.decode().strip().splitlines()[1]
+    assert "'=HYPERLINK" in row
